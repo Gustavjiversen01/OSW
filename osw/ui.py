@@ -5,7 +5,7 @@ from PySide6.QtCore import QPropertyAnimation, QTimer, Qt
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDialog, QFormLayout, QGraphicsOpacityEffect,
-    QHBoxLayout, QLineEdit, QMenu, QPushButton, QSystemTrayIcon, QWidget,
+    QHBoxLayout, QLineEdit, QMenu, QProgressBar, QPushButton, QSystemTrayIcon, QWidget,
 )
 
 from . import settings
@@ -130,6 +130,10 @@ class SettingsDialog(QDialog):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
 
+        quality_row = QWidget()
+        quality_layout = QHBoxLayout(quality_row)
+        quality_layout.setContentsMargins(0, 0, 0, 0)
+        quality_layout.setSpacing(6)
         self._quality = QComboBox()
         labels = list(settings.MODELS.keys())
         self._quality.addItems(labels)
@@ -137,7 +141,13 @@ class SettingsDialog(QDialog):
         if current_label in labels:
             self._quality.setCurrentText(current_label)
         self._quality.currentTextChanged.connect(self._on_quality_changed)
-        layout.addRow("Quality", self._quality)
+        quality_layout.addWidget(self._quality)
+        self._download_btn = QPushButton("Download")
+        self._download_btn.setFixedWidth(72)
+        self._download_btn.clicked.connect(self._download_model)
+        quality_layout.addWidget(self._download_btn)
+        layout.addRow("Quality", quality_row)
+        self._update_download_btn()
 
         self._mic = QComboBox()
         self._mic_devices = self._get_input_devices()
@@ -182,9 +192,47 @@ class SettingsDialog(QDialog):
             if d["max_input_channels"] > 0 and d["name"] not in ("default", "pipewire", "pulse")
         ]
 
+    @staticmethod
+    def _is_model_cached(model_id: str) -> bool:
+        from faster_whisper.utils import _MODELS
+        from huggingface_hub import scan_cache_dir
+        repo_id = _MODELS.get(model_id, model_id)
+        try:
+            cache = scan_cache_dir()
+            return any(r.repo_id == repo_id for r in cache.repos)
+        except Exception:
+            return False
+
+    def _update_download_btn(self):
+        model_id = settings.model_for_label(self._quality.currentText())
+        if self._is_model_cached(model_id):
+            self._download_btn.hide()
+        else:
+            self._download_btn.show()
+            self._download_btn.setText("Download")
+            self._download_btn.setEnabled(True)
+
+    def _download_model(self):
+        import threading
+        model_id = settings.model_for_label(self._quality.currentText())
+        self._download_btn.setText("...")
+        self._download_btn.setEnabled(False)
+
+        def do_download():
+            try:
+                from faster_whisper.utils import download_model
+                download_model(model_id)
+                self._download_btn.hide()
+            except Exception:
+                self._download_btn.setText("Retry")
+                self._download_btn.setEnabled(True)
+
+        threading.Thread(target=do_download, daemon=True).start()
+
     def _on_quality_changed(self, label: str):
         self._settings["model"] = settings.model_for_label(label)
         self._save()
+        self._update_download_btn()
 
     def _on_mic_changed(self, index: int):
         if index == 0:
