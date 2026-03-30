@@ -9,7 +9,11 @@
 
 ---
 
-**Local and private** — runs entirely on your machine, no cloud, no data leaves your computer.
+I wanted something like Apple's dictation — but local, open, and on Linux. Every option I found was either cloud-dependent, paywalled, or abandoned. So I built it myself. No subscriptions, no telemetry, no profit motive. Just a tool that works. If that's what you're looking for too, this is for you.
+
+---
+
+**Local and private** — runs entirely on your machine. No cloud, no accounts, no data leaves your computer.
 
 **Zero config** — launches into system tray, works immediately with your default microphone.
 
