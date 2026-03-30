@@ -1,46 +1,75 @@
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtCore import QPropertyAnimation, QTimer, Qt
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QComboBox, QDialog, QFormLayout, QLineEdit,
-    QMenu, QSystemTrayIcon,
+    QApplication, QCheckBox, QComboBox, QDialog, QFormLayout, QGraphicsOpacityEffect,
+    QHBoxLayout, QLineEdit, QMenu, QPushButton, QSystemTrayIcon, QWidget,
 )
 
 from . import settings
 
 
 def _make_icon(color: str, filled: bool = False, opacity: float = 1.0) -> QIcon:
-    dpr = QApplication.instance().devicePixelRatio()
-    size = int(22 * dpr)
+    size = 64
     pm = QPixmap(size, size)
-    pm.setDevicePixelRatio(dpr)
     pm.fill(Qt.transparent)
     p = QPainter(pm)
     p.setRenderHint(QPainter.Antialiasing)
     p.setOpacity(opacity)
-
-    rect = pm.rect()
-    cx, cy = rect.width() / dpr / 2, rect.height() / dpr / 2
+    cx, cy = size // 2, size // 2
 
     if filled:
         p.setBrush(QColor(color))
         p.setPen(Qt.NoPen)
-        p.drawEllipse(int(cx - 8), int(cy - 8), 16, 16)
+        p.drawEllipse(cx - 24, cy - 24, 48, 48)
     else:
-        p.setPen(QColor(color))
+        from PySide6.QtGui import QPen
+        pen = QPen(QColor(color), 4)
+        p.setPen(pen)
         p.setBrush(Qt.NoBrush)
-        # Microphone shape: rounded rect body + stand
-        p.drawRoundedRect(int(cx - 4), int(cy - 8), 8, 12, 3, 3)
-        p.drawArc(int(cx - 6), int(cy - 2), 12, 12, 0, -180 * 16)
-        p.drawLine(int(cx), int(cy + 4), int(cx), int(cy + 7))
-        p.drawLine(int(cx - 3), int(cy + 7), int(cx + 3), int(cy + 7))
+        p.drawRoundedRect(cx - 10, cy - 20, 20, 28, 7, 7)
+        p.drawArc(cx - 16, cy - 6, 32, 28, 0, -180 * 16)
+        p.drawLine(cx, cy + 8, cx, cy + 18)
+        p.drawLine(cx - 8, cy + 18, cx + 8, cy + 18)
 
     p.end()
-    icon = QIcon(pm)
-    icon.setIsMask(not filled)
-    return icon
+    return QIcon(pm)
+
+
+class RecordingIndicator(QWidget):
+    """Small red dot at top-center of screen. Visible only while recording."""
+
+    def __init__(self):
+        super().__init__()
+        self.setWindowFlags(
+            Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
+            | Qt.Tool | Qt.WindowTransparentForInput
+        )
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setFixedSize(12, 12)
+        self._opacity_effect = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(self._opacity_effect)
+        self._opacity_effect.setOpacity(0.85)
+
+        # Position: top-center of primary screen
+        screen = QApplication.primaryScreen().geometry()
+        self.move(screen.width() // 2 - 6, 6)
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        p.setBrush(QColor("#e74c3c"))
+        p.setPen(Qt.NoPen)
+        p.drawEllipse(0, 0, 12, 12)
+        p.end()
+
+    def flash_done(self):
+        """Brief green flash then hide — signals transcription complete."""
+        self._opacity_effect.setOpacity(0.85)
+        p = self.grab()  # force repaint trick — just show green briefly
+        self.hide()
 
 
 class TrayIcon(QSystemTrayIcon):
@@ -59,7 +88,7 @@ class TrayIcon(QSystemTrayIcon):
         self._state = state
         if state == self.RECORDING:
             self._pulse_opacity = 1.0
-            self._pulse_timer.start(66)  # ~15fps
+            self._pulse_timer.start(66)
         else:
             self._pulse_timer.stop()
         self._update_icon()
@@ -74,14 +103,14 @@ class TrayIcon(QSystemTrayIcon):
 
     def _update_icon(self):
         tooltips = {
-            self.IDLE: "OSW — Hold Ctrl+Space to dictate",
-            self.RECORDING: "Recording...",
+            self.IDLE: "OSW — Ctrl+Space to dictate",
+            self.RECORDING: "Recording... Ctrl+Space to stop",
             self.PROCESSING: "Transcribing...",
         }
         self.setToolTip(tooltips.get(self._state, ""))
 
         if self._state == self.IDLE:
-            self.setIcon(_make_icon("#888888", filled=False))
+            self.setIcon(_make_icon("#e0e0e0", filled=False))
         elif self._state == self.RECORDING:
             self.setIcon(_make_icon("#e74c3c", filled=True, opacity=self._pulse_opacity))
         elif self._state == self.PROCESSING:
@@ -94,14 +123,13 @@ class SettingsDialog(QDialog):
         self._settings = dict(current_settings)
         self._on_changed = on_changed
         self.setWindowTitle("OSW")
-        self.setFixedSize(320, 180)
+        self.setFixedSize(320, 230)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
         layout = QFormLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
 
-        # Quality dropdown
         self._quality = QComboBox()
         labels = list(settings.MODELS.keys())
         self._quality.addItems(labels)
@@ -111,25 +139,75 @@ class SettingsDialog(QDialog):
         self._quality.currentTextChanged.connect(self._on_quality_changed)
         layout.addRow("Quality", self._quality)
 
-        # Shortcut
-        self._shortcut = QLineEdit(self._settings["hotkey"])
-        self._shortcut.editingFinished.connect(self._on_shortcut_changed)
-        layout.addRow("Shortcut", self._shortcut)
+        self._mic = QComboBox()
+        self._mic_devices = self._get_input_devices()
+        self._mic.addItem("Default")
+        for idx, name in self._mic_devices:
+            self._mic.addItem(name)
+        current_dev = self._settings.get("audio_device")
+        if current_dev is not None:
+            for i, (idx, name) in enumerate(self._mic_devices):
+                if idx == current_dev:
+                    self._mic.setCurrentIndex(i + 1)
+                    break
+        self._mic.currentIndexChanged.connect(self._on_mic_changed)
+        layout.addRow("Microphone", self._mic)
 
-        # Launch at login
+        shortcut_row = QWidget()
+        shortcut_layout = QHBoxLayout(shortcut_row)
+        shortcut_layout.setContentsMargins(0, 0, 0, 0)
+        shortcut_layout.setSpacing(6)
+        self._shortcut_label = QLineEdit(self._settings["hotkey"])
+        self._shortcut_label.setReadOnly(True)
+        self._record_btn = QPushButton("Record")
+        self._record_btn.setFixedWidth(60)
+        self._record_btn.clicked.connect(self._start_recording_shortcut)
+        shortcut_layout.addWidget(self._shortcut_label)
+        shortcut_layout.addWidget(self._record_btn)
+        layout.addRow("Shortcut", shortcut_row)
+        self._capturing = False
+
         self._autostart = QCheckBox()
         self._autostart.setChecked(self._settings.get("autostart", False))
         self._autostart.toggled.connect(self._on_autostart_changed)
         layout.addRow("Launch at login", self._autostart)
 
+    @staticmethod
+    def _get_input_devices() -> list[tuple[int, str]]:
+        import sounddevice as sd
+        devices = sd.query_devices()
+        return [
+            (i, d["name"])
+            for i, d in enumerate(devices)
+            if d["max_input_channels"] > 0 and d["name"] not in ("default", "pipewire", "pulse")
+        ]
+
     def _on_quality_changed(self, label: str):
         self._settings["model"] = settings.model_for_label(label)
         self._save()
 
-    def _on_shortcut_changed(self):
-        text = self._shortcut.text().strip().lower()
-        if text:
-            self._settings["hotkey"] = text
+    def _on_mic_changed(self, index: int):
+        if index == 0:
+            self._settings["audio_device"] = None
+        else:
+            self._settings["audio_device"] = self._mic_devices[index - 1][0]
+        self._save()
+
+    def _start_recording_shortcut(self):
+        self._capturing = True
+        self._captured_keys = set()
+        self._shortcut_label.setText("Press keys...")
+        self._record_btn.setText("...")
+        self._record_btn.setEnabled(False)
+
+    def _stop_recording_shortcut(self):
+        self._capturing = False
+        self._record_btn.setText("Record")
+        self._record_btn.setEnabled(True)
+        if self._captured_keys:
+            hotkey = "+".join(sorted(self._captured_keys))
+            self._shortcut_label.setText(hotkey)
+            self._settings["hotkey"] = hotkey
             self._save()
 
     def _on_autostart_changed(self, checked: bool):
@@ -156,10 +234,34 @@ class SettingsDialog(QDialog):
         elif desktop_file.exists():
             desktop_file.unlink()
 
+    _QT_KEY_NAMES = {
+        Qt.Key_Control: "ctrl", Qt.Key_Shift: "shift", Qt.Key_Alt: "alt",
+        Qt.Key_Meta: "super", Qt.Key_Space: "space", Qt.Key_Tab: "tab",
+        Qt.Key_Return: "enter", Qt.Key_Escape: "esc",
+    }
+
+    def _key_name(self, qt_key: int) -> str | None:
+        if qt_key in self._QT_KEY_NAMES:
+            return self._QT_KEY_NAMES[qt_key]
+        text = chr(qt_key).lower() if 0x20 < qt_key < 0x7F else None
+        return text
+
     def keyPressEvent(self, event):
+        if self._capturing:
+            name = self._key_name(event.key())
+            if name:
+                self._captured_keys.add(name)
+                self._shortcut_label.setText("+".join(sorted(self._captured_keys)))
+            return
         if event.key() == Qt.Key_Escape:
             self.close()
         elif event.key() == Qt.Key_W and event.modifiers() & Qt.ControlModifier:
             self.close()
         else:
             super().keyPressEvent(event)
+
+    def keyReleaseEvent(self, event):
+        if self._capturing:
+            self._stop_recording_shortcut()
+            return
+        super().keyReleaseEvent(event)

@@ -13,6 +13,7 @@ MODELS = {
 DEFAULTS = {
     "model": "distil-medium.en",
     "hotkey": "ctrl+space",
+    "audio_device": None,  # None = system default
     "autostart": False,
     "onboarding_shown": False,
 }

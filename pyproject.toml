@@ -15,8 +15,7 @@ dependencies = [
     "numpy",
     "PySide6-Essentials>=6.5.0",
     "platformdirs>=3.0.0",
-    "evdev>=1.6.0; sys_platform == 'linux'",
-    "pynput>=1.7.0; sys_platform != 'linux'",
+    "pynput>=1.7.0",
 ]
 
 [project.scripts]

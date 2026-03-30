@@ -15,12 +15,12 @@ class Engine:
         self._stream = None
         self._recording = False
 
-    def start_recording(self):
+    def start_recording(self, device=None):
         self._chunks.clear()
         try:
             self._stream = sd.InputStream(
                 samplerate=16000, channels=1, dtype="float32",
-                callback=self._audio_callback,
+                device=device, callback=self._audio_callback,
             )
             self._stream.start()
             self._recording = True
@@ -76,16 +76,10 @@ class Engine:
             return
         self.model = None
         self._model_name = model_name
-        try:
-            from faster_whisper import WhisperModel
-            self.model = WhisperModel(
-                model_name, device="cuda", compute_type="float16"
-            )
-        except Exception:
-            from faster_whisper import WhisperModel
-            self.model = WhisperModel(
-                model_name, device="cpu", compute_type="int8"
-            )
+        from faster_whisper import WhisperModel
+        self.model = WhisperModel(
+            model_name, device="cpu", compute_type="int8"
+        )
 
     def _audio_callback(self, indata, frames, time_info, status):
         if self._recording:
