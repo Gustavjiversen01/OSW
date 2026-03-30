@@ -1,22 +1,7 @@
-import ctypes
 import os
 import subprocess
 import sys
 import time
-
-# Preload CUDA libraries from pip packages so CTranslate2 can find them
-_site = os.path.join(
-    sys.prefix, "lib",
-    f"python{sys.version_info.major}.{sys.version_info.minor}",
-    "site-packages",
-)
-for _lib in ("nvidia/cublas/lib/libcublas.so.12", "nvidia/cudnn/lib/libcudnn.so.9"):
-    _full = os.path.join(_site, _lib)
-    if os.path.isfile(_full):
-        try:
-            ctypes.cdll.LoadLibrary(_full)
-        except OSError:
-            pass
 
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication, QMenu

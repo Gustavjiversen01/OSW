@@ -4,3 +4,10 @@ __pycache__/
 dist/
 build/
 *.pyc
+.env
+*.log
+*.wav
+*.mp3
+.idea/
+.vscode/
+.DS_Store

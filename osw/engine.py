@@ -74,6 +74,10 @@ class Engine:
     def _ensure_model(self, model_name: str):
         if self.model and self._model_name == model_name:
             return
+        if self.model:
+            del self.model
+            import gc
+            gc.collect()
         self.model = None
         self._model_name = model_name
         from faster_whisper import WhisperModel

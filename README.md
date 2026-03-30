@@ -43,20 +43,21 @@ Right-click the tray icon to open **Settings**, where you can configure:
 
 | Setting | Options |
 |---|---|
-| **Quality** | Fast, Balanced (default), Quality, Maximum |
+| **Quality** | Fast, Balanced (default), Quality, High, Maximum |
 | **Microphone** | Any connected input device, or system default |
 | **Shortcut** | Click Record, then press any key combination |
 | **Launch at login** | Auto-start with your desktop |
 
 ## Models
 
-Models download automatically from HuggingFace on first use. Your clipboard is never touched.
+You don't need to download anything manually. The first time you dictate, OSW downloads your selected model from HuggingFace (~300 MB to ~3 GB depending on quality level). After that, it's cached locally and loads instantly.
 
 | Label | Model | Size | Notes |
 |---|---|---|---|
-| Fast | [small.en](https://huggingface.co/Systran/faster-whisper-small.en) | ~500 MB | Lightweight, good quality |
+| Fast | [distil-small.en](https://huggingface.co/Systran/faster-distil-whisper-small.en) | ~336 MB | Ultra-fast, lowest latency |
 | **Balanced** | [distil-medium.en](https://huggingface.co/Systran/faster-distil-whisper-medium.en) | **~800 MB** | **Default — best speed/quality tradeoff** |
-| Quality | [distil-large-v3](https://huggingface.co/Systran/faster-distil-whisper-large-v3) | ~1.5 GB | High accuracy |
+| Quality | [distil-large-v3.5](https://huggingface.co/distil-whisper/distil-large-v3.5-ct2) | ~1.5 GB | High accuracy, trained on 4x more data |
+| High | [turbo](https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo) | ~1.6 GB | Near-maximum quality, much faster |
 | Maximum | [large-v3](https://huggingface.co/Systran/faster-whisper-large-v3) | ~3 GB | Best accuracy, slower |
 
 Custom models: set `"model"` in `~/.config/osw/settings.json` to any [faster-whisper](https://github.com/SYSTRAN/faster-whisper) compatible model ID.

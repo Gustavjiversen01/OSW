@@ -4,9 +4,10 @@ from pathlib import Path
 from platformdirs import user_config_dir
 
 MODELS = {
-    "Fast": "small.en",
+    "Fast": "distil-small.en",
     "Balanced": "distil-medium.en",
-    "Quality": "distil-large-v3",
+    "Quality": "distil-large-v3.5",
+    "High": "turbo",
     "Maximum": "large-v3",
 }
 
