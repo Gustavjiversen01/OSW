@@ -1,6 +1,5 @@
 import sys
 import threading
-from pathlib import Path
 
 from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtGui import QColor, QCursor, QIcon, QPainter, QPen, QPixmap
