@@ -11,3 +11,15 @@ build/
 .idea/
 .vscode/
 .DS_Store
+*.egg
+*.pyo
+*.so
+*.pyd
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.swp
+*~
+Thumbs.db

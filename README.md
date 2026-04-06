@@ -1,6 +1,9 @@
+![License: MIT](https://img.shields.io/badge/license-MIT-green)
+![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
+
 <p align="center">
-  <h1 align="center">OSW</h1>
-  <p align="center">Open Source Whisper — voice-to-text that stays out of your way.</p>
+  <h1 align="center">LocalDictate</h1>
+  <p align="center">Local voice-to-text, powered by Whisper.</p>
 </p>
 
 <p align="center">
@@ -13,7 +16,7 @@ I wanted something like Apple's dictation — but local, open, and on Linux. Eve
 
 ---
 
-**Local and private** — runs entirely on your machine. No cloud, no accounts, no data leaves your computer.
+**Local and private** — after a one-time model download from HuggingFace, all processing happens on your machine. No audio or text data is ever transmitted.
 
 **Zero config** — launches into system tray, works immediately with your default microphone.
 
@@ -21,15 +24,34 @@ I wanted something like Apple's dictation — but local, open, and on Linux. Eve
 
 ## Install
 
-```bash
-# Linux
-sudo apt install portaudio19-dev xdotool
-git clone https://github.com/Gustavjiversen01/OSW.git
-cd OSW
-pip install .
+### Linux
 
-# Run
-osw
+```bash
+sudo apt install portaudio19-dev xdotool
+pip install git+https://github.com/Gustavjiversen01/OSW.git
+```
+
+Optional Wayland tools: `wtype` or `ydotool` for text injection on Wayland compositors.
+
+### macOS (experimental, unverified)
+
+```bash
+brew install portaudio
+pip install git+https://github.com/Gustavjiversen01/OSW.git
+```
+
+Note: macOS requires Accessibility permission for keyboard input.
+
+### Windows (experimental, unverified)
+
+```powershell
+pip install git+https://github.com/Gustavjiversen01/OSW.git
+```
+
+Then run:
+
+```bash
+localdictate
 ```
 
 ## How it works
@@ -38,6 +60,8 @@ osw
 2. Speak naturally
 3. Press `Ctrl+Space` to stop
 4. Your words are typed into whatever app is focused
+
+If direct text injection fails (e.g., missing `xdotool`), LocalDictate falls back to clipboard paste (Ctrl+V). This is best-effort: only text clipboard contents are preserved, and rich/image data may be lost.
 
 Right-click the tray icon to open **Settings**, where you can configure:
 
@@ -60,13 +84,20 @@ Models are not included in the install — they download automatically from Hugg
 | High | [turbo](https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo) | ~1.6 GB | Near-maximum quality, much faster |
 | Maximum | [large-v3](https://huggingface.co/Systran/faster-whisper-large-v3) | ~3 GB | Best accuracy, slower |
 
-Custom models: set `"model"` in `~/.config/osw/settings.json` to any [faster-whisper](https://github.com/SYSTRAN/faster-whisper) compatible model ID.
+Models are open-source — verify each model's license on its HuggingFace page.
+
+Custom models: set `"model"` in `~/.config/localdictate/settings.json` to any [faster-whisper](https://github.com/SYSTRAN/faster-whisper) compatible model ID.
 
 ## Requirements
 
 - Python 3.10+
-- Linux (X11), Windows, macOS
+- Linux (X11 primary; Wayland experimental — global hotkeys require X11, use tray menu on Wayland)
+- macOS, Windows (experimental, unverified)
 - PortAudio (`portaudio19-dev` on Debian/Ubuntu)
+
+## Contributing
+
+Bug reports and feature requests are welcome on the [issue tracker](https://github.com/Gustavjiversen01/OSW/issues).
 
 ## License
 

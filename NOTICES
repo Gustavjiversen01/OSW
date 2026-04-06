@@ -1,0 +1,48 @@
+Third-Party Dependency Licenses
+================================
+
+LocalDictate is released under the MIT License. The following direct
+dependencies are distributed under their own licenses, listed below to
+the best of our knowledge. This list covers direct dependencies only;
+transitive dependency licenses should be audited before each release.
+
+PySide6-Essentials
+  License: LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+  URL: https://www.qt.io/licensing
+  Note: PySide6 is used via dynamic linking (Python import). The full
+  LGPL-3.0 text is available at https://www.gnu.org/licenses/lgpl-3.0.html
+
+pynput
+  License: LGPL-3.0-only
+  URL: https://github.com/moses-palmer/pynput/blob/master/COPYING.LGPL
+  Note: The full LGPL-3.0 text is available at
+  https://www.gnu.org/licenses/lgpl-3.0.html
+
+faster-whisper
+  License: MIT
+  URL: https://github.com/SYSTRAN/faster-whisper/blob/master/LICENSE
+
+CTranslate2 (transitive, via faster-whisper)
+  License: MIT
+  URL: https://github.com/OpenNMT/CTranslate2/blob/master/LICENSE
+
+huggingface-hub
+  License: Apache-2.0
+  URL: https://github.com/huggingface/huggingface_hub/blob/main/LICENSE
+
+sounddevice
+  License: MIT
+  URL: https://github.com/spatialaudio/python-sounddevice/blob/master/LICENSE
+
+NumPy
+  License: BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0
+  URL: https://github.com/numpy/numpy/blob/main/LICENSE.txt
+
+platformdirs
+  License: MIT
+  URL: https://github.com/tox-dev/platformdirs/blob/main/LICENSE
+
+Whisper Models (downloaded at runtime from HuggingFace)
+  The models listed in LocalDictate are released under MIT or Apache-2.0
+  licenses by their respective authors. Verify each model's license on
+  its HuggingFace page before redistribution.

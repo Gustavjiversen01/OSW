@@ -3,23 +3,42 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "osw"
+name = "localdictate"
 version = "0.1.0"
-description = "Open Source Whisper — hold a hotkey, speak, release. Text appears."
+description = "LocalDictate — local voice-to-text, powered by Whisper."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
+authors = [{name = "Gustav Jiversen"}]
+keywords = ["voice", "dictation", "speech-to-text", "whisper", "local"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+]
 dependencies = [
     "faster-whisper>=1.0.0",
     "sounddevice>=0.4.0",
-    "numpy",
+    "numpy>=1.24",
     "PySide6-Essentials>=6.5.0",
     "platformdirs>=3.0.0",
     "pynput>=1.7.0",
+    "huggingface-hub",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest", "build", "twine"]
+
 [project.scripts]
-osw = "osw.__main__:main"
+localdictate = "localdictate.__main__:main"
 
 [project.urls]
 Homepage = "https://github.com/Gustavjiversen01/OSW"
+Source = "https://github.com/Gustavjiversen01/OSW"
+Issues = "https://github.com/Gustavjiversen01/OSW/issues"
+
+[tool.pytest.ini_options]
+addopts = "-p no:launch_testing -p no:ament_flake8 -p no:ament_pep257 -p no:ament_xmllint -p no:ament_copyright -p no:ament_lint"

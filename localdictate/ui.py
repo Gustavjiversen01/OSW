@@ -3,13 +3,15 @@ import threading
 from pathlib import Path
 
 from PySide6.QtCore import QTimer, Qt, Signal
-from PySide6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap
+from PySide6.QtGui import QColor, QCursor, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QComboBox, QDialog, QFormLayout, QGraphicsOpacityEffect,
-    QHBoxLayout, QLineEdit, QPushButton, QSystemTrayIcon, QWidget,
+    QApplication, QCheckBox, QComboBox, QDialog, QFormLayout,
+    QGraphicsOpacityEffect, QHBoxLayout, QLabel, QLineEdit, QPushButton,
+    QSystemTrayIcon, QVBoxLayout, QWidget,
 )
 
 from . import settings
+from .cache import is_model_cached
 
 
 def _make_icon(color: str, filled: bool = False, opacity: float = 1.0) -> QIcon:
@@ -39,7 +41,7 @@ def _make_icon(color: str, filled: bool = False, opacity: float = 1.0) -> QIcon:
 
 
 class RecordingIndicator(QWidget):
-    """Small red dot at top-center of screen. Visible only while recording."""
+    """Small red dot. Repositions to the active monitor on each show."""
 
     def __init__(self):
         super().__init__()
@@ -53,8 +55,11 @@ class RecordingIndicator(QWidget):
         self.setGraphicsEffect(self._opacity_effect)
         self._opacity_effect.setOpacity(0.85)
 
-        screen = QApplication.primaryScreen().geometry()
-        self.move(screen.width() // 2 - 6, 6)
+    def showEvent(self, event):
+        screen = QApplication.screenAt(QCursor.pos()) or QApplication.primaryScreen()
+        geo = screen.geometry()
+        self.move(geo.x() + geo.width() // 2 - 6, geo.y() + 6)
+        super().showEvent(event)
 
     def paintEvent(self, event):
         p = QPainter(self)
@@ -66,7 +71,7 @@ class RecordingIndicator(QWidget):
 
 
 class TrayIcon(QSystemTrayIcon):
-    IDLE, RECORDING, PROCESSING = range(3)
+    IDLE, RECORDING, PROCESSING, DOWNLOADING = 0, 1, 2, 3
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -101,29 +106,82 @@ class TrayIcon(QSystemTrayIcon):
 
     def _update_icon(self):
         tooltips = {
-            self.IDLE: f"OSW — {self._hotkey} to dictate",
+            self.IDLE: f"LocalDictate — {self._hotkey} to dictate",
             self.RECORDING: f"Recording... {self._hotkey} to stop",
             self.PROCESSING: "Transcribing...",
+            self.DOWNLOADING: "Downloading model...",
         }
         self.setToolTip(tooltips.get(self._state, ""))
 
         if self._state == self.IDLE:
             self.setIcon(_make_icon("#e0e0e0", filled=False))
         elif self._state == self.RECORDING:
-            self.setIcon(_make_icon("#e74c3c", filled=True, opacity=self._pulse_opacity))
+            self.setIcon(_make_icon("#e74c3c", filled=True,
+                                    opacity=self._pulse_opacity))
         elif self._state == self.PROCESSING:
             self.setIcon(_make_icon("#e67e22", filled=True))
+        elif self._state == self.DOWNLOADING:
+            self.setIcon(_make_icon("#e67e22", filled=False))
+
+
+class FallbackWindow(QWidget):
+    """Minimal window for desktops without a system tray."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("LocalDictate")
+        self.setFixedSize(260, 80)
+        layout = QVBoxLayout(self)
+        self._status = QLabel("Idle")
+        layout.addWidget(self._status)
+        btn_row = QHBoxLayout()
+        self._toggle_btn = QPushButton("Start Dictation")
+        self._settings_btn = QPushButton("Settings")
+        self._quit_btn = QPushButton("Quit")
+        btn_row.addWidget(self._toggle_btn)
+        btn_row.addWidget(self._settings_btn)
+        btn_row.addWidget(self._quit_btn)
+        layout.addLayout(btn_row)
+        self._hotkey = "Ctrl+Space"
+
+    def update_hotkey_tooltip(self, hotkey_str: str):
+        self._hotkey = hotkey_str.replace("+", " + ").title()
+        self.setWindowTitle(f"LocalDictate — {self._hotkey}")
+
+    # Match TrayIcon constants so __main__.py can use either interchangeably
+    IDLE, RECORDING, PROCESSING, DOWNLOADING = 0, 1, 2, 3
+    MessageIcon = type("MI", (), {"Warning": 1, "Information": 0})()
+
+    def set_state(self, state: int):
+        labels = {
+            self.IDLE: "Idle",
+            self.RECORDING: "Recording...",
+            self.PROCESSING: "Transcribing...",
+            self.DOWNLOADING: "Downloading model...",
+        }
+        self._status.setText(labels.get(state, ""))
+        if state == self.IDLE:
+            self._toggle_btn.setText("Start Dictation")
+        elif state == self.RECORDING:
+            self._toggle_btn.setText("Stop Dictation")
+
+    def showMessage(self, title, msg, icon=None, ms=3000):
+        self._status.setText(msg)
+        QTimer.singleShot(ms, lambda: self._status.setText("Idle"))
 
 
 class SettingsDialog(QDialog):
-    _download_finished = Signal(bool)  # True = success, False = failure
+    _download_finished = Signal(bool)
+
+    _MODIFIERS = {"ctrl", "shift", "alt", "super"}
+    _CANONICAL_ORDER = ["ctrl", "shift", "alt", "super"]
 
     def __init__(self, current_settings: dict, on_changed, parent=None):
         super().__init__(parent)
         self._settings = dict(current_settings)
         self._on_changed = on_changed
         self._download_finished.connect(self._on_download_finished)
-        self.setWindowTitle("OSW")
+        self.setWindowTitle("LocalDictate")
         self.setFixedSize(320, 230)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
@@ -131,6 +189,7 @@ class SettingsDialog(QDialog):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
 
+        # Quality
         quality_row = QWidget()
         quality_layout = QHBoxLayout(quality_row)
         quality_layout.setContentsMargins(0, 0, 0, 0)
@@ -150,6 +209,7 @@ class SettingsDialog(QDialog):
         layout.addRow("Quality", quality_row)
         self._update_download_btn()
 
+        # Microphone
         self._mic = QComboBox()
         self._mic_devices = self._get_input_devices()
         self._mic.addItem("Default")
@@ -164,6 +224,7 @@ class SettingsDialog(QDialog):
         self._mic.currentIndexChanged.connect(self._on_mic_changed)
         layout.addRow("Microphone", self._mic)
 
+        # Shortcut
         shortcut_row = QWidget()
         shortcut_layout = QHBoxLayout(shortcut_row)
         shortcut_layout.setContentsMargins(0, 0, 0, 0)
@@ -178,25 +239,19 @@ class SettingsDialog(QDialog):
         layout.addRow("Shortcut", shortcut_row)
         self._capturing = False
 
+        # Autostart
         self._autostart = QCheckBox()
         self._autostart.setChecked(self._settings.get("autostart", False))
         self._autostart.toggled.connect(self._on_autostart_changed)
         layout.addRow("Launch at login", self._autostart)
 
-    @staticmethod
-    def _is_model_cached(model_id: str) -> bool:
-        from faster_whisper.utils import _MODELS
-        from huggingface_hub import scan_cache_dir
-        repo_id = _MODELS.get(model_id, model_id)
-        try:
-            cache = scan_cache_dir()
-            return any(r.repo_id == repo_id for r in cache.repos)
-        except Exception:
-            return False
+        # Hide autostart on unsupported platforms
+        if sys.platform not in ("linux", "win32", "darwin"):
+            self._autostart.setVisible(False)
 
     def _update_download_btn(self):
         model_id = settings.model_for_label(self._quality.currentText())
-        if self._is_model_cached(model_id):
+        if is_model_cached(model_id):
             self._download_btn.hide()
         else:
             self._download_btn.show()
@@ -232,7 +287,8 @@ class SettingsDialog(QDialog):
         return [
             (i, d["name"])
             for i, d in enumerate(devices)
-            if d["max_input_channels"] > 0 and d["name"] not in ("default", "pipewire", "pulse")
+            if d["max_input_channels"] > 0
+            and d["name"] not in ("default", "pipewire", "pulse")
         ]
 
     def _on_quality_changed(self, label: str):
@@ -247,9 +303,13 @@ class SettingsDialog(QDialog):
             self._settings["audio_device"] = self._mic_devices[index - 1][0]
         self._save()
 
+    # -- Shortcut recording with validation --
+
     def _start_recording_shortcut(self):
         self._capturing = True
         self._captured_keys = set()
+        self._held_keys = set()
+        self._prev_hotkey = self._settings["hotkey"]
         self._shortcut_label.setText("Press keys...")
         self._record_btn.setText("...")
         self._record_btn.setEnabled(False)
@@ -258,35 +318,41 @@ class SettingsDialog(QDialog):
         self._capturing = False
         self._record_btn.setText("Record")
         self._record_btn.setEnabled(True)
-        if self._captured_keys:
-            hotkey = "+".join(sorted(self._captured_keys))
-            self._shortcut_label.setText(hotkey)
-            self._settings["hotkey"] = hotkey
-            self._save()
+
+        if not self._captured_keys:
+            self._shortcut_label.setText(self._prev_hotkey)
+            return
+
+        # Validate: must have at least one non-modifier key
+        non_modifiers = self._captured_keys - self._MODIFIERS
+        if not non_modifiers:
+            self._shortcut_label.setText("Invalid shortcut")
+            QTimer.singleShot(
+                1500,
+                lambda: self._shortcut_label.setText(self._prev_hotkey),
+            )
+            return
+
+        # Canonical ordering: ctrl+shift+alt+super+<keys>
+        mods = [m for m in self._CANONICAL_ORDER if m in self._captured_keys]
+        keys = sorted(self._captured_keys - self._MODIFIERS)
+        hotkey = "+".join(mods + keys)
+        self._shortcut_label.setText(hotkey)
+        self._settings["hotkey"] = hotkey
+        self._save()
 
     def _on_autostart_changed(self, checked: bool):
         self._settings["autostart"] = checked
-        self._apply_autostart(checked)
+        from .autostart import set_autostart
+        try:
+            set_autostart(checked)
+        except Exception:
+            pass  # platform failure doesn't affect settings save
         self._save()
 
     def _save(self):
         settings.save(self._settings)
         self._on_changed(self._settings)
-
-    def _apply_autostart(self, enabled: bool):
-        if sys.platform != "linux":
-            return
-        autostart_dir = Path.home() / ".config" / "autostart"
-        desktop_file = autostart_dir / "osw.desktop"
-        if enabled:
-            autostart_dir.mkdir(parents=True, exist_ok=True)
-            desktop_file.write_text(
-                "[Desktop Entry]\nType=Application\nName=OSW\n"
-                f"Exec={sys.executable} -m osw\nHidden=false\n"
-                "X-GNOME-Autostart-enabled=true\n"
-            )
-        elif desktop_file.exists():
-            desktop_file.unlink()
 
     _QT_KEY_NAMES = {
         Qt.Key_Control: "ctrl", Qt.Key_Shift: "shift", Qt.Key_Alt: "alt",
@@ -302,10 +368,22 @@ class SettingsDialog(QDialog):
 
     def keyPressEvent(self, event):
         if self._capturing:
+            if event.isAutoRepeat():
+                return
             name = self._key_name(event.key())
             if name:
+                # Esc during capture → cancel
+                if name == "esc":
+                    self._capturing = False
+                    self._record_btn.setText("Record")
+                    self._record_btn.setEnabled(True)
+                    self._shortcut_label.setText(self._prev_hotkey)
+                    return
                 self._captured_keys.add(name)
-                self._shortcut_label.setText("+".join(sorted(self._captured_keys)))
+                self._held_keys.add(name)
+                self._shortcut_label.setText(
+                    "+".join(sorted(self._captured_keys)),
+                )
             return
         if event.key() == Qt.Key_Escape:
             self.close()
@@ -316,6 +394,13 @@ class SettingsDialog(QDialog):
 
     def keyReleaseEvent(self, event):
         if self._capturing:
-            self._stop_recording_shortcut()
+            if event.isAutoRepeat():
+                return
+            name = self._key_name(event.key())
+            if name:
+                self._held_keys.discard(name)
+            # Finalize only when ALL keys are released
+            if not self._held_keys:
+                self._stop_recording_shortcut()
             return
         super().keyReleaseEvent(event)
