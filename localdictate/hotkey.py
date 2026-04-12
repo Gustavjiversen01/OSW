@@ -33,6 +33,7 @@ class HotkeyListener:
         try:
             from pynput import keyboard
             from pynput.keyboard import Key, KeyCode
+
             self._keyboard = keyboard
             self._Key = Key
             self._KeyCode = KeyCode
@@ -65,9 +66,14 @@ class HotkeyListener:
         Key = self._Key
         KeyCode = self._KeyCode
         key_names = {
-            "ctrl": Key.ctrl, "shift": Key.shift, "alt": Key.alt,
-            "super": Key.cmd, "space": Key.space, "tab": Key.tab,
-            "enter": Key.enter, "esc": Key.esc,
+            "ctrl": Key.ctrl,
+            "shift": Key.shift,
+            "alt": Key.alt,
+            "super": Key.cmd,
+            "space": Key.space,
+            "tab": Key.tab,
+            "enter": Key.enter,
+            "esc": Key.esc,
         }
         keys = set()
         for p in parts:
@@ -80,10 +86,14 @@ class HotkeyListener:
     def _canonicalize(self, key):
         Key = self._Key
         mapping = {
-            Key.ctrl_l: Key.ctrl, Key.ctrl_r: Key.ctrl,
-            Key.shift_l: Key.shift, Key.shift_r: Key.shift,
-            Key.alt_l: Key.alt, Key.alt_r: Key.alt,
-            Key.cmd_l: Key.cmd, Key.cmd_r: Key.cmd,
+            Key.ctrl_l: Key.ctrl,
+            Key.ctrl_r: Key.ctrl,
+            Key.shift_l: Key.shift,
+            Key.shift_r: Key.shift,
+            Key.alt_l: Key.alt,
+            Key.alt_r: Key.alt,
+            Key.cmd_l: Key.cmd,
+            Key.cmd_r: Key.cmd,
         }
         return mapping.get(key, key)
 

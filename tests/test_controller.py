@@ -4,7 +4,7 @@ These tests validate the state transition rules without creating a real
 QApplication. They mock the engine and tray to test the controller logic.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from localdictate.state import AppState
 
@@ -34,7 +34,7 @@ class TestStateTransitions:
     def test_mic_failure_stays_idle(self):
         """If start_recording returns False, app stays IDLE."""
         state = {"app": AppState.IDLE, "active_job": None, "shutting_down": False}
-        tray = FakeTray()
+        FakeTray()  # noqa: F841 -- validates tray can be constructed
         engine = MagicMock()
         engine.start_recording.return_value = False
 

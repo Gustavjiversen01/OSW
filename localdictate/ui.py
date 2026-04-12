@@ -1,12 +1,22 @@
 import sys
 import threading
 
-from PySide6.QtCore import QTimer, Qt, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QCursor, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QComboBox, QDialog, QFormLayout,
-    QGraphicsOpacityEffect, QHBoxLayout, QLabel, QLineEdit, QPushButton,
-    QSystemTrayIcon, QVBoxLayout, QWidget,
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QFormLayout,
+    QGraphicsOpacityEffect,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QSystemTrayIcon,
+    QVBoxLayout,
+    QWidget,
 )
 
 from . import settings
@@ -45,8 +55,10 @@ class RecordingIndicator(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowFlags(
-            Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
-            | Qt.Tool | Qt.WindowTransparentForInput
+            Qt.FramelessWindowHint
+            | Qt.WindowStaysOnTopHint
+            | Qt.Tool
+            | Qt.WindowTransparentForInput
         )
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setFixedSize(12, 12)
@@ -115,8 +127,7 @@ class TrayIcon(QSystemTrayIcon):
         if self._state == self.IDLE:
             self.setIcon(_make_icon("#e0e0e0", filled=False))
         elif self._state == self.RECORDING:
-            self.setIcon(_make_icon("#e74c3c", filled=True,
-                                    opacity=self._pulse_opacity))
+            self.setIcon(_make_icon("#e74c3c", filled=True, opacity=self._pulse_opacity))
         elif self._state == self.PROCESSING:
             self.setIcon(_make_icon("#e67e22", filled=True))
         elif self._state == self.DOWNLOADING:
@@ -212,11 +223,11 @@ class SettingsDialog(QDialog):
         self._mic = QComboBox()
         self._mic_devices = self._get_input_devices()
         self._mic.addItem("Default")
-        for idx, name in self._mic_devices:
+        for _idx, name in self._mic_devices:
             self._mic.addItem(name)
         current_dev = self._settings.get("audio_device")
         if current_dev is not None:
-            for i, (idx, name) in enumerate(self._mic_devices):
+            for i, (idx, _name) in enumerate(self._mic_devices):
                 if idx == current_dev:
                     self._mic.setCurrentIndex(i + 1)
                     break
@@ -265,6 +276,7 @@ class SettingsDialog(QDialog):
         def do_download():
             try:
                 from faster_whisper.utils import download_model
+
                 download_model(model_id)
                 self._download_finished.emit(True)
             except Exception:
@@ -282,12 +294,12 @@ class SettingsDialog(QDialog):
     @staticmethod
     def _get_input_devices() -> list[tuple[int, str]]:
         import sounddevice as sd
+
         devices = sd.query_devices()
         return [
             (i, d["name"])
             for i, d in enumerate(devices)
-            if d["max_input_channels"] > 0
-            and d["name"] not in ("default", "pipewire", "pulse")
+            if d["max_input_channels"] > 0 and d["name"] not in ("default", "pipewire", "pulse")
         ]
 
     def _on_quality_changed(self, label: str):
@@ -343,6 +355,7 @@ class SettingsDialog(QDialog):
     def _on_autostart_changed(self, checked: bool):
         self._settings["autostart"] = checked
         from .autostart import set_autostart
+
         try:
             set_autostart(checked)
         except Exception:
@@ -354,9 +367,14 @@ class SettingsDialog(QDialog):
         self._on_changed(self._settings)
 
     _QT_KEY_NAMES = {
-        Qt.Key_Control: "ctrl", Qt.Key_Shift: "shift", Qt.Key_Alt: "alt",
-        Qt.Key_Meta: "super", Qt.Key_Space: "space", Qt.Key_Tab: "tab",
-        Qt.Key_Return: "enter", Qt.Key_Escape: "esc",
+        Qt.Key_Control: "ctrl",
+        Qt.Key_Shift: "shift",
+        Qt.Key_Alt: "alt",
+        Qt.Key_Meta: "super",
+        Qt.Key_Space: "space",
+        Qt.Key_Tab: "tab",
+        Qt.Key_Return: "enter",
+        Qt.Key_Escape: "esc",
     }
 
     def _key_name(self, qt_key: int) -> str | None:

@@ -102,7 +102,10 @@ def save(settings: dict):
 
 
 _KNOWN_KEYS = {
-    "space", "tab", "enter", "esc",
+    "space",
+    "tab",
+    "enter",
+    "esc",
 }
 
 

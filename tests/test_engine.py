@@ -90,8 +90,7 @@ class TestEnsureModel:
     def test_cache_key_includes_device_compute(self):
         engine = _make_engine()
         mock_model = MagicMock()
-        with patch("faster_whisper.WhisperModel", return_value=mock_model, create=True) \
-                as mock_cls:
+        with patch("faster_whisper.WhisperModel", return_value=mock_model, create=True) as mock_cls:
             with engine._model_lock:
                 engine._ensure_model("distil-medium.en", "cpu", "int8")
             assert engine._cache_key == ("distil-medium.en", "cpu", "int8")
@@ -111,8 +110,9 @@ class TestEnsureModel:
         engine.model = old_model
         engine._cache_key = ("distil-medium.en", "cpu", "int8")
 
-        with patch("faster_whisper.WhisperModel",
-                   side_effect=RuntimeError("load failed"), create=True):
+        with patch(
+            "faster_whisper.WhisperModel", side_effect=RuntimeError("load failed"), create=True
+        ):
             try:
                 with engine._model_lock:
                     engine._ensure_model("large-v3", "cpu", "int8")

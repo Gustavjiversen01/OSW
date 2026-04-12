@@ -1,0 +1,59 @@
+name: Bug Report
+description: Report a bug in LocalDictate
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Launch localdictate
+        2. Press Ctrl+Space
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What you expected to happen.
+    validations:
+      required: false
+  - type: input
+    id: os
+    attributes:
+      label: OS and desktop environment
+      placeholder: "Ubuntu 24.04, GNOME 46, X11"
+    validations:
+      required: true
+  - type: input
+    id: python_version
+    attributes:
+      label: Python version
+      placeholder: "3.12.3"
+    validations:
+      required: true
+  - type: input
+    id: app_version
+    attributes:
+      label: LocalDictate version
+      description: "Run `python -m localdictate --version` or `localdictate --version`"
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / error output
+      description: Paste any relevant terminal output or error messages.
+      render: text
+    validations:
+      required: false

@@ -40,5 +40,13 @@ Homepage = "https://github.com/Gustavjiversen01/localdictate"
 Source = "https://github.com/Gustavjiversen01/localdictate"
 Issues = "https://github.com/Gustavjiversen01/localdictate/issues"
 
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "UP", "I"]
+ignore = ["E501"]
+
 [tool.pytest.ini_options]
 addopts = "-p no:launch_testing -p no:launch_testing_ros -p no:ament_flake8 -p no:ament_pep257 -p no:ament_xmllint -p no:ament_copyright -p no:ament_lint"

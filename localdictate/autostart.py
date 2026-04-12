@@ -1,6 +1,5 @@
 """Cross-platform autostart management for LocalDictate."""
 
-import os
 import sys
 from pathlib import Path
 
@@ -45,10 +44,14 @@ def _windows_autostart(enabled: bool):
     try:
         import subprocess
         import winreg
+
         key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
         cmd = subprocess.list2cmdline([sys.executable, "-m", "localdictate"])
         with winreg.OpenKey(
-            winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE,
+            winreg.HKEY_CURRENT_USER,
+            key_path,
+            0,
+            winreg.KEY_SET_VALUE,
         ) as key:
             if enabled:
                 winreg.SetValueEx(key, "LocalDictate", 0, winreg.REG_SZ, cmd)
@@ -64,6 +67,7 @@ def _windows_autostart(enabled: bool):
 def _macos_autostart(enabled: bool):
     try:
         import plistlib
+
         plist_dir = Path.home() / "Library" / "LaunchAgents"
         plist_file = plist_dir / "com.gustavjiversen.localdictate.plist"
         if enabled:

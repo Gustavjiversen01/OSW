@@ -12,32 +12,29 @@ from .hotkey import HotkeyListener
 from .state import AppState
 from .ui import FallbackWindow, RecordingIndicator, SettingsDialog, TrayIcon
 
-_wayland = (
-    os.environ.get("XDG_SESSION_TYPE") == "wayland"
-    or "WAYLAND_DISPLAY" in os.environ
-)
+_wayland = os.environ.get("XDG_SESSION_TYPE") == "wayland" or "WAYLAND_DISPLAY" in os.environ
 
 
 class Bridge(QObject):
-    toggled = Signal()                        # hotkey or manual toggle
-    transcription_done = Signal(int, str)     # job_id, text
-    transcription_complete = Signal(int)       # job_id (no text)
-    status_changed = Signal(int, str)          # job_id, message
-    error_occurred = Signal(int, str)          # job_id, message
-    engine_error = Signal(str)                 # non-job mic/startup errors
+    toggled = Signal()  # hotkey or manual toggle
+    transcription_done = Signal(int, str)  # job_id, text
+    transcription_complete = Signal(int)  # job_id (no text)
+    status_changed = Signal(int, str)  # job_id, message
+    error_occurred = Signal(int, str)  # job_id, message
+    engine_error = Signal(str)  # non-job mic/startup errors
     clipboard_inject = Signal(str)
     injection_error = Signal(str)
 
 
 # -- Text injection --
 
+
 def _try_cmd(cmd, timeout=10):
     """Run a subprocess command. Returns True on success."""
     try:
         subprocess.run(cmd, timeout=timeout, check=True)
         return True
-    except (FileNotFoundError, subprocess.CalledProcessError,
-            subprocess.TimeoutExpired):
+    except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return False
 
 
@@ -51,21 +48,28 @@ def _make_inject_text(bridge):
         with _inject_lock:
             if sys.platform == "linux":
                 if _wayland:
-                    ok = (
-                        _try_cmd(["wtype", "--", text])
-                        or _try_cmd(["ydotool", "type", "--", text])
+                    ok = _try_cmd(["wtype", "--", text]) or _try_cmd(
+                        ["ydotool", "type", "--", text]
                     )
                 else:
-                    ok = _try_cmd([
-                        "xdotool", "type", "--clearmodifiers",
-                        "--delay", "3", "--", text,
-                    ])
+                    ok = _try_cmd(
+                        [
+                            "xdotool",
+                            "type",
+                            "--clearmodifiers",
+                            "--delay",
+                            "3",
+                            "--",
+                            text,
+                        ]
+                    )
                 if not ok:
                     bridge.clipboard_inject.emit(text)
                     return
             else:
                 try:
                     from pynput.keyboard import Controller
+
                     Controller().type(text)
                 except Exception:
                     bridge.clipboard_inject.emit(text)
@@ -75,24 +79,32 @@ def _make_inject_text(bridge):
 
 # -- Clipboard fallback (best-effort, documented limitation) --
 
+
 def _try_paste_cmd():
     """Simulate Ctrl+V per platform. Returns True on success."""
     if sys.platform == "linux":
         if _wayland:
             return _try_cmd(
-                ["wtype", "-M", "ctrl", "-k", "v", "-m", "ctrl"], timeout=2,
+                ["wtype", "-M", "ctrl", "-k", "v", "-m", "ctrl"],
+                timeout=2,
             )
         return _try_cmd(
-            ["xdotool", "key", "--clearmodifiers", "ctrl+v"], timeout=2,
+            ["xdotool", "key", "--clearmodifiers", "ctrl+v"],
+            timeout=2,
         )
     elif sys.platform == "darwin":
-        return _try_cmd([
-            "osascript", "-e",
-            'tell application "System Events" to keystroke "v" using command down',
-        ], timeout=2)
+        return _try_cmd(
+            [
+                "osascript",
+                "-e",
+                'tell application "System Events" to keystroke "v" using command down',
+            ],
+            timeout=2,
+        )
     elif sys.platform == "win32":
         try:
             from pynput.keyboard import Controller, Key
+
             k = Controller()
             k.press(Key.ctrl)
             k.press("v")
@@ -153,7 +165,10 @@ def main():
         if state["shutting_down"]:
             return
         tray.showMessage(
-            "LocalDictate", msg, TrayIcon.MessageIcon.Warning, 3000,
+            "LocalDictate",
+            msg,
+            TrayIcon.MessageIcon.Warning,
+            3000,
         )
 
     # -- Engine --
@@ -257,7 +272,9 @@ def main():
         state["app"] = AppState.IDLE
         tray.set_state(TrayIcon.IDLE)
         threading.Thread(
-            target=_inject_text, args=(text,), daemon=True,
+            target=_inject_text,
+            args=(text,),
+            daemon=True,
         ).start()
 
     def handle_complete(job_id: int):
@@ -275,7 +292,10 @@ def main():
         tray.set_state(TrayIcon.IDLE)
         indicator.hide()
         tray.showMessage(
-            "LocalDictate", msg, TrayIcon.MessageIcon.Warning, 3000,
+            "LocalDictate",
+            msg,
+            TrayIcon.MessageIcon.Warning,
+            3000,
         )
 
     def handle_status(job_id: int, msg: str):
@@ -297,7 +317,10 @@ def main():
         if toggle_action:
             toggle_action.setText("Start Dictation")
         tray.showMessage(
-            "LocalDictate", msg, TrayIcon.MessageIcon.Warning, 3000,
+            "LocalDictate",
+            msg,
+            TrayIcon.MessageIcon.Warning,
+            3000,
         )
 
     # -- Connect signals --
@@ -319,18 +342,20 @@ def main():
             "LocalDictate",
             "Wayland detected. Global hotkeys may not work. "
             "Use the tray menu to start/stop dictation.",
-            TrayIcon.MessageIcon.Warning, 5000,
+            TrayIcon.MessageIcon.Warning,
+            5000,
         )
     elif not hotkey_ok:
         tray.showMessage(
             "LocalDictate",
-            "Could not start hotkey listener. "
-            "Use the tray menu to start/stop dictation.",
-            TrayIcon.MessageIcon.Warning, 5000,
+            "Could not start hotkey listener. Use the tray menu to start/stop dictation.",
+            TrayIcon.MessageIcon.Warning,
+            5000,
         )
 
     # -- Startup migration: clean up stale osw autostart --
     from .autostart import cleanup_stale_osw, set_autostart
+
     cleanup_stale_osw()
     if cfg.get("autostart"):
         try:
@@ -345,7 +370,8 @@ def main():
             "LocalDictate",
             f"Ready. Press {hotkey_display} to dictate.\n"
             "First use will download the speech model (~800 MB).",
-            TrayIcon.MessageIcon.Information, 5000,
+            TrayIcon.MessageIcon.Information,
+            5000,
         )
         cfg["onboarding_shown"] = True
         settings.save(cfg)

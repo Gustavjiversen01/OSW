@@ -22,13 +22,12 @@ class Engine:
     _model_lock may be held during model load (by workers only, by design).
     """
 
-    def __init__(self, on_transcription, on_complete, on_error,
-                 on_engine_error, on_status):
+    def __init__(self, on_transcription, on_complete, on_error, on_engine_error, on_status):
         self._on_transcription = on_transcription  # (job_id, text)
-        self._on_complete = on_complete              # (job_id,)
-        self._on_error = on_error                    # (job_id, msg)
-        self._on_engine_error = on_engine_error      # (msg,) non-job-scoped
-        self._on_status = on_status                  # (job_id, msg)
+        self._on_complete = on_complete  # (job_id,)
+        self._on_error = on_error  # (job_id, msg)
+        self._on_engine_error = on_engine_error  # (msg,) non-job-scoped
+        self._on_status = on_status  # (job_id, msg)
 
         self.model = None
         self._cache_key = None  # (model_name, device, compute_type)
@@ -57,9 +56,13 @@ class Engine:
         stream = None
         try:
             import sounddevice as sd
+
             stream = sd.InputStream(
-                samplerate=16000, channels=1, dtype="float32",
-                device=device, callback=self._audio_callback,
+                samplerate=16000,
+                channels=1,
+                dtype="float32",
+                device=device,
+                callback=self._audio_callback,
             )
             stream.start()
         except Exception as e:
@@ -77,10 +80,15 @@ class Engine:
             self._stream = stream
         return True
 
-    def stop_and_transcribe(self, model_name: str, initial_prompt=None,
-                            length_penalty=1.0, language=None,
-                            device="auto", compute_type="default",
-                            ) -> tuple[bool, int]:
+    def stop_and_transcribe(
+        self,
+        model_name: str,
+        initial_prompt=None,
+        length_penalty=1.0,
+        language=None,
+        device="auto",
+        compute_type="default",
+    ) -> tuple[bool, int]:
         """Stop recording and start transcription. Returns (queued, job_id)."""
         with self._audio_lock:
             if not self._recording:
@@ -110,8 +118,16 @@ class Engine:
             my_job = self._job_id
             t = threading.Thread(
                 target=self._transcribe,
-                args=(audio, model_name, initial_prompt, length_penalty,
-                      language, device, compute_type, my_job),
+                args=(
+                    audio,
+                    model_name,
+                    initial_prompt,
+                    length_penalty,
+                    language,
+                    device,
+                    compute_type,
+                    my_job,
+                ),
                 daemon=True,
             )
             self._workers.add(t)
@@ -167,9 +183,17 @@ class Engine:
 
     # -- Worker (runs on daemon thread) --
 
-    def _transcribe(self, audio: np.ndarray, model_name: str,
-                    initial_prompt, length_penalty, language,
-                    device, compute_type, job_id: int):
+    def _transcribe(
+        self,
+        audio: np.ndarray,
+        model_name: str,
+        initial_prompt,
+        length_penalty,
+        language,
+        device,
+        compute_type,
+        job_id: int,
+    ):
         def _is_current():
             with self._job_lock:
                 return job_id == self._job_id
@@ -207,8 +231,11 @@ class Engine:
                     return
 
                 segments, _ = self.model.transcribe(
-                    audio, language=effective_language, beam_size=5,
-                    vad_filter=False, initial_prompt=initial_prompt,
+                    audio,
+                    language=effective_language,
+                    beam_size=5,
+                    vad_filter=False,
+                    initial_prompt=initial_prompt,
                     length_penalty=length_penalty,
                 )
                 text = " ".join(seg.text.strip() for seg in segments).strip()
@@ -241,6 +268,7 @@ class Engine:
         if device == "auto" or compute_type == "default":
             try:
                 import ctranslate2
+
                 has_cuda = ctranslate2.get_cuda_device_count() > 0
             except Exception:
                 has_cuda = False
@@ -253,7 +281,8 @@ class Engine:
         actual_compute = resolved_compute
         try:
             new_model = WhisperModel(
-                model_name, device=resolved_device,
+                model_name,
+                device=resolved_device,
                 compute_type=resolved_compute,
             )
         except Exception as e:
@@ -262,7 +291,9 @@ class Engine:
                 actual_device = "cpu"
                 actual_compute = "int8"
                 new_model = WhisperModel(
-                    model_name, device="cpu", compute_type="int8",
+                    model_name,
+                    device="cpu",
+                    compute_type="int8",
                 )
             else:
                 raise
